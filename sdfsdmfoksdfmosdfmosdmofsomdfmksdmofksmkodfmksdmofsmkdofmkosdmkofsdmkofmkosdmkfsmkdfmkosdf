@@ -41,8 +41,10 @@ local function update(input)
     mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
 end
 
+local UserInputService = game:GetService("UserInputService")
+
 headerFrame.InputBegan:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseButton1 then
+    if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
@@ -56,12 +58,12 @@ headerFrame.InputBegan:Connect(function(input)
 end)
 
 headerFrame.InputChanged:Connect(function(input)
-    if input.UserInputType == Enum.UserInputType.MouseMovement then
+    if input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch then
         dragInput = input
     end
 end)
 
-game:GetService("UserInputService").InputChanged:Connect(function(input)
+UserInputService.InputChanged:Connect(function(input)
     if dragging and input == dragInput then
         update(input)
     end
@@ -100,7 +102,7 @@ local function createAnimationButton(animationId, animationName)
     button.TextSize = 14
     button.TextWrapped = true -- Wrap text to fit within the button
     button.Parent = scrollingFrame
-    
+
     -- Copy the animation ID to the clipboard on click
     button.MouseButton1Click:Connect(function()
         setclipboard(tostring(animationId))
@@ -131,23 +133,14 @@ end
 local function trackAnimations(character)
     local humanoid = character:FindFirstChildOfClass("Humanoid")
     if humanoid then
-        -- Track animations for both R6 and R15
-        for _, track in pairs(humanoid:GetPlayingAnimationTracks()) do
-            onAnimationPlayed(track)
-        end
-        humanoid.AnimationPlayed:Connect(onAnimationPlayed) -- For R15
+        humanoid.AnimationPlayed:Connect(onAnimationPlayed)
     end
 end
 
--- Connect the function to the player's character
-local player = game.Players.LocalPlayer
-player.CharacterAdded:Connect(function(character)
-    -- Wait until the character is fully loaded before tracking animations
-    character:WaitForChild("Humanoid")
-    trackAnimations(character)
-end)
+-- Listen for character changes
+player.CharacterAdded:Connect(trackAnimations)
 
--- If the character already exists when the script runs
+-- Track animations for the current character if it exists
 if player.Character then
     trackAnimations(player.Character)
 end
