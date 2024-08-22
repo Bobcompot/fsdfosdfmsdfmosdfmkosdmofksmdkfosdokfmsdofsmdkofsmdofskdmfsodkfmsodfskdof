@@ -31,24 +31,26 @@ titleLabel.Font = Enum.Font.SourceSans
 titleLabel.Parent = headerFrame
 
 -- Draggable functionality
-local dragging
-local dragInput
-local dragStart
-local startPos
+local dragging = false
+local dragInput, dragStart, startPos
 
 local function update(input)
     local delta = input.Position - dragStart
-    mainFrame.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    local newPos = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+    
+    -- Clamp position to prevent GUI from going off-screen
+    newPos = UDim2.new(math.clamp(newPos.X.Scale, 0, 1), math.clamp(newPos.X.Offset, 0, game.Workspace.CurrentCamera.ViewportSize.X - mainFrame.Size.X.Offset), 
+                        math.clamp(newPos.Y.Scale, 0, 1), math.clamp(newPos.Y.Offset, 0, game.Workspace.CurrentCamera.ViewportSize.Y - mainFrame.Size.Y.Offset))
+    
+    mainFrame.Position = newPos
 end
-
-local UserInputService = game:GetService("UserInputService")
 
 headerFrame.InputBegan:Connect(function(input)
     if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
         dragging = true
         dragStart = input.Position
         startPos = mainFrame.Position
-        
+
         input.Changed:Connect(function()
             if input.UserInputState == Enum.UserInputState.End then
                 dragging = false
@@ -63,7 +65,7 @@ headerFrame.InputChanged:Connect(function(input)
     end
 end)
 
-UserInputService.InputChanged:Connect(function(input)
+game:GetService("UserInputService").InputChanged:Connect(function(input)
     if dragging and input == dragInput then
         update(input)
     end
@@ -85,10 +87,8 @@ local addedAnimationIDs = {}
 -- Function to create a text button for each animation ID and name
 local function createAnimationButton(animationId, animationName)
     -- Check if the animation ID is already added
-    if addedAnimationIDs[animationId] then
-        return
-    end
-    
+    if addedAnimationIDs[animationId] then return end
+
     -- Mark the animation ID as added
     addedAnimationIDs[animationId] = true
 
@@ -100,18 +100,18 @@ local function createAnimationButton(animationId, animationName)
     button.TextColor3 = Color3.fromRGB(255, 255, 255)
     button.Text = animationName .. " | ID: " .. animationId
     button.TextSize = 14
-    button.TextWrapped = true -- Wrap text to fit within the button
+    button.TextWrapped = true
     button.Parent = scrollingFrame
-
+    
     -- Copy the animation ID to the clipboard on click
     button.MouseButton1Click:Connect(function()
         setclipboard(tostring(animationId))
         print("Copied to clipboard: " .. animationId)
     end)
-    
+
     -- Position the button within the scrolling frame
     button.Position = UDim2.new(0, 5, 0, (#scrollingFrame:GetChildren() - 1) * 35)
-    
+
     -- Update the CanvasSize to accommodate the new button
     local contentHeight = #scrollingFrame:GetChildren() * 35
     scrollingFrame.CanvasSize = UDim2.new(0, 0, 0, contentHeight)
@@ -137,10 +137,11 @@ local function trackAnimations(character)
     end
 end
 
--- Listen for character changes
+-- Listen for the player's character
+local player = game.Players.LocalPlayer
 player.CharacterAdded:Connect(trackAnimations)
 
--- Track animations for the current character if it exists
+-- If character is already added, track animations directly
 if player.Character then
     trackAnimations(player.Character)
 end
